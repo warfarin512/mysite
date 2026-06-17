@@ -1,0 +1,75 @@
+# Discord 通知セットアップ手順
+
+毎朝7:00（日本時間）に「その日の予定」をDiscordに自動投稿します。
+予定を変えたら、アプリの「⬇ 書き出し」ボタンで events.json を更新してアップロードし直してください。
+
+---
+
+## STEP 1: Discord の Webhook URL を取得
+
+1. 通知を受け取りたいDiscordサーバーを開く（自分専用サーバーでOK）
+2. 通知したいチャンネルの歯車（チャンネルの編集）をクリック
+3. 「連携サービス」→「ウェブフックを作成」
+4. 名前を付けて（例: Chronos）、「ウェブフックURLをコピー」を押す
+   → `https://discord.com/api/webhooks/...` というURLが手に入る
+
+※ このURLは「鍵」と同じです。他人に教えないでください。
+
+---
+
+## STEP 2: GitHub に Webhook URL を登録（Secrets）
+
+URLをコードに直接書かず、GitHubの秘密の保管庫に入れます。
+
+1. リポジトリの Settings を開く
+2. 左メニュー「Secrets and variables」→「Actions」
+3. 「New repository secret」を押す
+4. Name に **DISCORD_WEBHOOK_URL** と入力（この名前のまま）
+5. Secret 欄に STEP1 のURLを貼り付けて「Add secret」
+
+---
+
+## STEP 3: ファイルをリポジトリに追加
+
+このフォルダの中身を、リポジトリの該当する場所に置きます。
+
+- `.github/workflows/daily-notify.yml` → リポジトリ内の同じパスに
+- `scripts/notify.mjs` → リポジトリ内の `scripts/` フォルダに
+- `events.json`（アプリの「⬇ 書き出し」ボタンで作ったもの）→ リポジトリ直下に
+
+「Add file」→「Upload files」でドラッグ＆ドロップし、Commit changes を押す。
+（フォルダ構造ごとドラッグすればパスは維持されます）
+
+---
+
+## STEP 4: 動作テスト
+
+1. リポジトリ上部の「Actions」タブを開く
+2. 左の「Daily Discord Notify」を選ぶ
+3. 右の「Run workflow」ボタンを押す（手動実行）
+4. 数十秒後、Discordに今日の予定が届けば成功
+
+---
+
+## 通知時刻を変えたい
+
+`.github/workflows/daily-notify.yml` の cron を編集します。
+`"0 22 * * *"` は UTC 22:00 = 日本時間 翌朝7:00 の意味。
+例: 朝6:00にしたい → `"0 21 * * *"` / 朝8:00 → `"0 23 * * *"`
+
+---
+
+## アプリ側のボタン追加（任意）
+
+`ExportButton.tsx` を components フォルダに置き、
+`components/Chrome.tsx` のボタンが並ぶ箇所に次の2つを足すと、
+アプリ画面から直接 events.json を書き出せます。
+
+```tsx
+import ExportButton from "./ExportButton";
+// ...ボタン群の中に...
+<ExportButton />
+```
+
+これをしない場合でも、ブラウザの開発者ツールから手動でJSONを作ることは可能ですが、
+ボタンを足すのが断然簡単です。
