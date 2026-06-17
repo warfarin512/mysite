@@ -1,15 +1,11 @@
-// 毎朝 GitHub Actions から実行され、その日の予定を Discord Webhook に送る。
-// 予定データはリポジトリ直下の events.json から読む（アプリの「書き出す」ボタンで更新）。
-
 import { readFileSync } from "node:fs";
 
 const WEBHOOK = process.env.DISCORD_WEBHOOK_URL;
 if (!WEBHOOK) {
-  console.error("DISCORD_WEBHOOK_URL が未設定です（GitHub Secrets を確認）");
+  console.error("DISCORD_WEBHOOK_URL が未設定です");
   process.exit(1);
 }
 
-// 日本時間(JST)での「今日」を求める
 const now = new Date();
 const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
 const y = jst.getUTCFullYear();
@@ -26,7 +22,7 @@ try {
   events = Array.isArray(data) ? data : Object.values(data);
 } catch (e) {
   console.error("events.json を読めませんでした:", e.message);
-  process.exit(0); // データ未アップロード時は静かに終了
+  process.exit(0);
 }
 
 const todays = events
@@ -38,12 +34,20 @@ if (todays.length === 0) {
   content = `**📅 ${Number(m)}月${Number(d)}日（${dow}）**\n今日の予定はありません。よい一日を。`;
 } else {
   const lines = todays.map((e) => {
-    const star = e.important ? "⭐ " : "・";
-    const time = e.time ? `\`${e.time}\` ` : "";
-    const tags = e.tags && e.tags.length ? `  〔${e.tags.join(" / ")}〕` : "";
-    return `${star}${time}**${e.title}**${tags}`;
+    const star = e.important ? "⭐" : "📌";
+    const time = e.time && e.endTime
+      ? `\`${e.time} — ${e.endTime}\``
+      : e.time
+      ? `\`${e.time}\``
+      : "";
+    const tags = e.tags && e.tags.length ? `〔${e.tags.join(" / ")}〕` : "";
+    const memo = e.memo ? `\n　　📝 ${e.memo.replace(/\n/g, " / ").replace(/\/ $/, "").trim()}` : "";
+    const checks = e.checklist && e.checklist.length
+      ? `\n　　✅ ${e.checklist.filter((c) => c.done).length}/${e.checklist.length} 完了`
+      : "";
+    return `${star} ${time} **${e.title}** ${tags}${memo}${checks}`;
   });
-  content = `**📅 ${Number(m)}月${Number(d)}日（${dow}）の予定（${todays.length}件）**\n` + lines.join("\n");
+  content = `**📅 ${Number(m)}月${Number(d)}日（${dow}）の予定（${todays.length}件）**\n\n` + lines.join("\n\n");
 }
 
 const res = await fetch(WEBHOOK, {
