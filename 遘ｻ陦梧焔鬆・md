@@ -1,0 +1,63 @@
+# 自動デプロイ化 移行手順
+
+これ以降、`_next` フォルダの手動アップロードは不要になります。
+リポジトリには「ソースコード」を置き、pushするたびにGitHub Actionsが
+自動でビルド → GitHub Pagesに公開します。
+
+---
+
+## STEP 0: 事前に守るもの（重要）
+
+- **events.json** … あなたの予定データ。消さない・上書きしない。
+- **あなたのカスタムアイコン** … 後で public/ フォルダに入れ直します。
+  先に今の icon-192.png / icon-512.png をPCにダウンロードしておいてください。
+
+---
+
+## STEP 1: リポジトリを掃除してソースを入れる（github.dev推奨）
+
+1. リポジトリのトップでキーボードの「.」を押して github.dev を開く
+2. 左のファイル一覧で、以下を右クリック → Delete で削除する
+   - `_next` フォルダ
+   - `index.html` / `404.html` / `index.txt` / `sw.js` / `manifest.json`
+   - `icon-192.png` / `icon-512.png`（ダウンロード済みであること）
+   - `ExportButton.tsx`（あれば）
+   - ※ `events.json` と `.github` と `scripts` は残してOK（後で上書きされます）
+3. このZIPを解凍した中身（app, components, lib, public, docs, scripts,
+   .github, package.json, package-lock.json, 各種設定ファイル）を
+   まとめてエディタにドラッグ＆ドロップ
+   - 「上書きしますか？」と聞かれたら OK
+4. あなたのカスタムアイコン2枚を **public/ フォルダの中に** ドラッグして
+   icon-192.png / icon-512.png を上書き
+5. 左の「ソース管理」アイコン → メッセージ入力 → Commit & Push
+
+## STEP 2: Pagesの設定を切り替える
+
+1. リポジトリの Settings → Pages
+2. 「Build and deployment」の **Source** を
+   「Deploy from a branch」から **「GitHub Actions」** に変更
+   （保存ボタンはなく、選んだ時点で反映されます）
+
+## STEP 3: デフォルトブランチ名の確認
+
+`.github/workflows/deploy.yml` の5行目
+`branches: [main]` の `main` を、あなたのリポジトリの
+デフォルトブランチ名に合わせてください（mainならそのまま）。
+
+## STEP 4: 動作確認
+
+1. Actionsタブ → 「Deploy to GitHub Pages」が自動で走っている
+   （走っていなければ Run workflow で手動実行）
+2. 緑のチェックが付いたら、いつものURLでアプリを開く
+3. Ctrl+Shift+R で強制再読み込み → 動けば完了
+
+---
+
+## 今後の更新方法
+
+コードを変更したら（github.devで直接編集でも、ファイル差し替えでも）
+**Commit & Push するだけ**。1〜2分後に自動で公開されます。
+`_next` の混在事故は構造的に起こらなくなります。
+
+※ Service Workerも「ネットワーク優先」に改良済みのため、
+   更新が反映されない問題も起こりにくくなっています。
