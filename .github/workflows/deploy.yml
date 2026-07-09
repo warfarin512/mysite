@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [warfarin512-patch-1]
+    branches: [main]
     paths-ignore:
       - "events.json"
   workflow_dispatch:
