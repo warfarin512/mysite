@@ -1,51 +1,82 @@
+import { supabase } from "./supabaseClient";
 import type { EventPage } from "./types";
 
-const DB_NAME = "chronos-db";
-const STORE = "events";
+interface EventRow {
+  id: string;
+  date: string;
+  time: string | null;
+  end_time: string | null;
+  title: string;
+  tags: string[];
+  memo: string;
+  checklist: EventPage["checklist"];
+  attachments: EventPage["attachments"];
+  important: boolean;
+  color: string;
+  visibility: EventPage["visibility"];
+  created_at: number;
+  updated_at: number;
+}
 
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => {
-      if (!req.result.objectStoreNames.contains(STORE)) {
-        req.result.createObjectStore(STORE, { keyPath: "id" });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+function rowToEvent(row: EventRow): EventPage {
+  return {
+    id: row.id,
+    date: row.date,
+    time: row.time ?? undefined,
+    endTime: row.end_time ?? undefined,
+    title: row.title,
+    tags: row.tags,
+    memo: row.memo,
+    checklist: row.checklist,
+    attachments: row.attachments,
+    important: row.important,
+    color: row.color,
+    visibility: row.visibility,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function eventToRow(ev: EventPage): Omit<EventRow, "id"> & { id: string } {
+  return {
+    id: ev.id,
+    date: ev.date,
+    time: ev.time ?? null,
+    end_time: ev.endTime ?? null,
+    title: ev.title,
+    tags: ev.tags,
+    memo: ev.memo,
+    checklist: ev.checklist,
+    attachments: ev.attachments,
+    important: ev.important,
+    color: ev.color,
+    visibility: ev.visibility,
+    created_at: ev.createdAt,
+    updated_at: ev.updatedAt,
+  };
 }
 
 export async function loadAllEvents(): Promise<EventPage[]> {
-  try {
-    const db = await openDB();
-    return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const req = tx.objectStore(STORE).getAll();
-      req.onsuccess = () => resolve(req.result as EventPage[]);
-      req.onerror = () => reject(req.error);
-    });
-  } catch {
+  const { data, error } = await supabase.from("events").select("*");
+  if (error) {
+    console.error("loadAllEvents failed:", error.message);
     return [];
   }
+  return (data as EventRow[]).map(rowToEvent);
 }
 
 export async function saveEvent(ev: EventPage): Promise<void> {
-  const db = await openDB();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put(ev);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  const { error } = await supabase.from("events").upsert(eventToRow(ev));
+  if (error) throw error;
 }
 
 export async function removeEvent(id: string): Promise<void> {
-  const db = await openDB();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  const { error } = await supabase.from("events").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function bulkInsertEvents(events: EventPage[]): Promise<void> {
+  if (events.length === 0) return;
+  const { error } = await supabase.from("events").upsert(events.map(eventToRow));
+  if (error) throw error;
 }

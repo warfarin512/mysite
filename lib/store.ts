@@ -1,8 +1,16 @@
 "use client";
 import { create } from "zustand";
+import type { Session } from "@supabase/supabase-js";
 import type { EventPage, TagDef } from "./types";
-import { loadAllEvents, saveEvent, removeEvent } from "./db";
+import { loadAllEvents, saveEvent, removeEvent, bulkInsertEvents } from "./db";
+import { loadAllLocalEvents } from "./localDb";
+import { supabase } from "./supabaseClient";
 import { todayIso } from "./date";
+
+interface AuthUser {
+  id: string;
+  email: string;
+}
 
 export const TAGS: TagDef[] = [
   { name: "仕事", color: "#3B82F6" },
@@ -23,6 +31,8 @@ interface ChronosState {
   newEventDate: string | null;
   searchOpen: boolean;
   theme: "light" | "dark";
+  user: AuthUser | null;
+  authReady: boolean;
 
   setZoom: (z: number) => void;
   setTargetZoom: (z: number) => void;
@@ -36,6 +46,8 @@ interface ChronosState {
   setNewEventDate: (d: string | null) => void;
   setSearchOpen: (b: boolean) => void;
   toggleTheme: () => void;
+  initAuth: () => void;
+  signOut: () => Promise<void>;
 }
 
 export const useChronos = create<ChronosState>((set, get) => ({
@@ -49,6 +61,8 @@ export const useChronos = create<ChronosState>((set, get) => ({
   newEventDate: null,
   searchOpen: false,
   theme: "light",
+  user: null,
+  authReady: false,
 
   setZoom: (z) => set({ zoom: Math.min(5, Math.max(1, z)) }),
   setTargetZoom: (z) => set({ targetZoom: Math.min(5, Math.max(1, z)) }),
@@ -92,7 +106,47 @@ export const useChronos = create<ChronosState>((set, get) => ({
       try { localStorage.setItem("chronos-theme", next); } catch {}
     }
   },
+
+  initAuth: () => {
+    const applySession = async (session: Session | null) => {
+      const user = session?.user ? { id: session.user.id, email: session.user.email ?? "" } : null;
+      set({ user, authReady: true });
+      if (user) {
+        await migrateLocalEventsOnce(user.id);
+        await get().hydrate();
+      } else {
+        set({ events: {}, loaded: false });
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => void applySession(data.session));
+    supabase.auth.onAuthStateChange((_event, session) => void applySession(session));
+  },
+
+  signOut: async () => {
+    await supabase.auth.signOut();
+  },
 }));
+
+async function migrateLocalEventsOnce(userId: string): Promise<void> {
+  const flag = `chronos-migrated-${userId}`;
+  try {
+    if (localStorage.getItem(flag)) return;
+  } catch {
+    return;
+  }
+  const local = await loadAllLocalEvents();
+  if (local.length > 0) {
+    const withVisibility = local.map((e) => ({ ...e, visibility: e.visibility ?? "private" }));
+    try {
+      await bulkInsertEvents(withVisibility);
+    } catch (e) {
+      console.error("ローカルデータのクラウド移行に失敗しました:", e);
+      return;
+    }
+  }
+  try { localStorage.setItem(flag, "1"); } catch {}
+}
 
 export function eventsOn(events: Record<string, EventPage>, date: string): EventPage[] {
   return Object.values(events)

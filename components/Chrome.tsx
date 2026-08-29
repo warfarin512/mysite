@@ -2,7 +2,6 @@
 import { motion } from "framer-motion";
 import { useChronos } from "@/lib/store";
 import { todayIso } from "@/lib/date";
-import ExportButton from "./ExportButton";
 
 const LEVEL_LABELS = ["年", "四半期", "月", "週", "日"];
 
@@ -14,6 +13,7 @@ export default function Chrome() {
   const setSearchOpen = useChronos((s) => s.setSearchOpen);
   const theme = useChronos((s) => s.theme);
   const toggleTheme = useChronos((s) => s.toggleTheme);
+  const signOut = useChronos((s) => s.signOut);
 
   const level = Math.round(targetZoom);
 
@@ -35,8 +35,8 @@ export default function Chrome() {
           <GlassBtn onClick={() => setSearchOpen(true)}>
             🔍 <kbd className="ml-1 hidden rounded border border-black/10 px-1 text-[9px] dark:border-white/20 sm:inline">⌘K</kbd>
           </GlassBtn>
-          <ExportButton />
           <GlassBtn onClick={toggleTheme}>{theme === "light" ? "🌙" : "☀️"}</GlassBtn>
+          <GlassBtn onClick={() => void signOut()}>ログアウト</GlassBtn>
         </div>
       </header>
 

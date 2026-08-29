@@ -6,13 +6,16 @@ import Chrome from "@/components/Chrome";
 import Dashboard from "@/components/Dashboard";
 import EventPageModal from "@/components/EventPageModal";
 import SearchPalette from "@/components/SearchPalette";
+import AuthGate from "@/components/AuthGate";
 
 export default function Home() {
-  const hydrate = useChronos((s) => s.hydrate);
+  const initAuth = useChronos((s) => s.initAuth);
+  const authReady = useChronos((s) => s.authReady);
+  const user = useChronos((s) => s.user);
   const loaded = useChronos((s) => s.loaded);
 
   useEffect(() => {
-    void hydrate();
+    initAuth();
     try {
       const t = localStorage.getItem("chronos-theme");
       if (t === "dark") useChronos.setState({ theme: "dark" });
@@ -20,7 +23,17 @@ export default function Home() {
     if ("serviceWorker" in navigator && location.protocol === "https:") {
       navigator.serviceWorker.register("./sw.js").catch(() => {});
     }
-  }, [hydrate]);
+  }, [initAuth]);
+
+  if (!authReady) {
+    return (
+      <main className="flex h-[100dvh] w-full items-center justify-center bg-paper text-ink dark:bg-[#0B0E14] dark:text-white">
+        <span className="text-sm text-ink-soft/50 dark:text-white/40">読み込み中…</span>
+      </main>
+    );
+  }
+
+  if (!user) return <AuthGate />;
 
   return (
     <main className="relative h-[100dvh] w-full overflow-hidden bg-paper text-ink transition-colors dark:bg-[#0B0E14] dark:text-white">

@@ -14,6 +14,8 @@ export interface Attachment {
   dataUrl: string;
 }
 
+export type Visibility = "private" | "shared";
+
 export interface EventPage {
   id: string;
   date: string;
@@ -26,6 +28,7 @@ export interface EventPage {
   attachments: Attachment[];
   important: boolean;
   color: string;
+  visibility: Visibility;
   createdAt: number;
   updatedAt: number;
 }

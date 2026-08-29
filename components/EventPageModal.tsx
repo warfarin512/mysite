@@ -27,7 +27,7 @@ export default function EventPageModal() {
     else if (newEventDate)
       setDraft({
         id: uid(), date: newEventDate, title: "", tags: [], memo: "",
-        checklist: [], attachments: [], important: false,
+        checklist: [], attachments: [], important: false, visibility: "private",
         color: TAGS[0].color, createdAt: Date.now(), updatedAt: Date.now(),
       });
     else setDraft(null);
@@ -118,6 +118,11 @@ export default function EventPageModal() {
                 className={`rounded-xl px-3 py-1.5 text-[13px] font-medium transition-colors
                   ${draft.important ? "bg-orange-500 text-white" : "border border-black/10 text-ink-soft dark:border-white/15 dark:text-white/60"}`}
               >★ 重要</button>
+              <button
+                onClick={() => setDraft({ ...draft, visibility: draft.visibility === "shared" ? "private" : "shared" })}
+                className={`rounded-xl px-3 py-1.5 text-[13px] font-medium transition-colors
+                  ${draft.visibility === "shared" ? "bg-blue-500 text-white" : "border border-black/10 text-ink-soft dark:border-white/15 dark:text-white/60"}`}
+              >{draft.visibility === "shared" ? "👥 共有中" : "🔒 自分のみ"}</button>
             </div>
 
             <div className="mt-3 flex flex-wrap gap-1.5">

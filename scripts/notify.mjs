@@ -1,10 +1,19 @@
-import { readFileSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
 
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const WEBHOOK = process.env.DISCORD_WEBHOOK_URL;
+
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  console.error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY が未設定です");
+  process.exit(1);
+}
 if (!WEBHOOK) {
   console.error("DISCORD_WEBHOOK_URL が未設定です");
   process.exit(1);
 }
+
+const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 const now = new Date();
 const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
@@ -15,19 +24,18 @@ const today = `${y}-${m}-${d}`;
 const YOUBI = ["日", "月", "火", "水", "木", "金", "土"];
 const dow = YOUBI[jst.getUTCDay()];
 
-let events = [];
-try {
-  const raw = readFileSync(new URL("../events.json", import.meta.url), "utf-8");
-  const data = JSON.parse(raw);
-  events = Array.isArray(data) ? data : Object.values(data);
-} catch (e) {
-  console.error("events.json を読めませんでした:", e.message);
-  process.exit(0);
+const { data: events, error } = await supabase
+  .from("events")
+  .select("*")
+  .eq("date", today)
+  .order("time", { ascending: true, nullsFirst: false });
+
+if (error) {
+  console.error("Supabaseからの取得に失敗しました:", error.message);
+  process.exit(1);
 }
 
-const todays = events
-  .filter((e) => e.date === today)
-  .sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
+const todays = (events ?? []).slice().sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
 
 let content;
 if (todays.length === 0) {
@@ -35,8 +43,8 @@ if (todays.length === 0) {
 } else {
   const lines = todays.map((e) => {
     const star = e.important ? "⭐" : "📌";
-    const time = e.time && e.endTime
-      ? `\`${e.time} — ${e.endTime}\``
+    const time = e.time && e.end_time
+      ? `\`${e.time} — ${e.end_time}\``
       : e.time
       ? `\`${e.time}\``
       : "";
